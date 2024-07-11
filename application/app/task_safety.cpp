@@ -32,6 +32,7 @@ safety_attr_t safety;
 float buffer_current[40];
 static uint8_t current_save_index;
 float sum = 0.0;
+float max_motor_current;
 
 /* estimate the weight */
 float mass_estimated;
@@ -82,7 +83,7 @@ void task_safety_handler(stk_msg_t* msg) {
     }
 }
 
-    void polling_checking_current() {
+void polling_checking_current() {
     if (pid_attribute.status == PID_ENABLE) {
         static uint16_t polling_counter;
         if (polling_counter == GET_CURRENT_POLLING_PERIOD) {
@@ -134,10 +135,16 @@ void update_current(float new_current) {
     if (current_save_index >= 40) {
         ENTRY_CRITICAL();
         current_save_index = 0;
+
         /* current average calculate */
         float sum = 0.0;
+        max_motor_current = buffer_current[0];
+
         for (int i = 0; i < 40; i++) {
             sum += buffer_current[i];
+            if (buffer_current[i] > max_motor_current) {
+                max_motor_current = buffer_current[i];
+            }
         }
         float average = sum / 40;
         safety.motor_current = average;
@@ -145,7 +152,7 @@ void update_current(float new_current) {
         EXIT_CRITICAL();
     }
 }
- 
+
 void change_setpoint(float motor_current) {
     if (pid_attribute.status == PID_ENABLE) {
         if ((motor_current >= CURRENT_POINT_3) && (motor_current < CURRENT_POINT_4)) {
